@@ -12,4 +12,7 @@ class GPSData(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     vehicle_id = Column(Integer, nullable=False)  # Assuming vehicle ID is an integer
     timestamp = Column(DateTime, nullable=False)
+    speed = Column(Integer, nullable=True)
+    route_id = Column(Integer, nullable=True)
+    azimuth = Column(Integer, nullable=True)
     geometry = Column(Geometry(geometry_type="POINT", srid=4326), nullable=False)

@@ -14,7 +14,7 @@ DB_USER = os.getenv("DB_USER", "postgres")
 DB_PASS = os.getenv("DB_PASS", "password")
 DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_PORT = os.getenv("DB_PORT", "5432")
-DB_NAME = os.getenv("DB_NAME", "mydb")
+DB_NAME = os.getenv("DB_NAME", "postgres")
 TABLE_NAME = os.getenv("TABLE_NAME", "gps_data")
 
 BASE_LAT, BASE_LON = 54.6872, 25.2797  # Vilnius city center

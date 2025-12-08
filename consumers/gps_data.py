@@ -2,10 +2,7 @@ from kafka import KafkaConsumer
 import json
 from dotenv import load_dotenv
 import os
-import pandas as pd
 import time
-import geopandas as gpd
-from datetime import datetime
 
 from sqlalchemy import create_engine
 
@@ -31,42 +28,34 @@ consumer = KafkaConsumer(
 
 def load_data():
 
-    engine = create_engine("postgresql://postgres:password@localhost/mydb")
+    engine = create_engine("postgresql://postgres:password@localhost/postgres")
     # get message from Kafka
     for message in consumer:
         data = message.value
 
         # Assuming the data is in JSON format
         data = json.loads(data)
-        df = pd.DataFrame(data)
 
-        df["Platuma"] = df["Platuma"].astype(str)
-        df["Ilguma"] = df["Ilguma"].astype(str)
+        # Parse data into lines
+        lines = data.split("\n")
 
-        # in 2 position add . to string
-        df["Platuma"] = df["Platuma"].apply(lambda x: x[:2] + "." + x[2:])
-        df["Ilguma"] = df["Ilguma"].apply(lambda x: x[:2] + "." + x[2:])
+        # First line is header
+        header = lines[0].split(",")
 
-        gdf = gpd.GeoDataFrame(
-            df,
-            geometry=gpd.points_from_xy(df["Ilguma"].astype(float), df["Platuma"].astype(float)),
-            crs="EPSG:4326",  # Assuming WGS84 coordinate system
-        )
+        lines = [line.split(",") for line in lines[1:] if line.strip() != ""]
 
-        gdf.rename(columns={"MasinosNumeris": "vehicle_id"}, inplace=True)
+        # Last line is timestamp
+        timestamp_line = lines.pop(-1)[-1]
 
-        gdf["timestamp"] = datetime.now()
-        gdf["timestamp"] = pd.to_datetime(gdf["timestamp"])
-
-        gdf = gdf[["vehicle_id", "timestamp", "geometry"]]
-
-        gdf.to_postgis(
-            name="gps_data",
-            con=engine,
-            if_exists="replace",  # replace the table if it exists
-            index=False,
-        )
-
+        # Add key from header and value from line to each line
+        json_data = []
+        for line in lines:
+            record = {}
+            for i in range(len(header)):
+                record[header[i]] = line[i]
+                record["timestamp"] = timestamp_line
+            json_data.append(record)
+    
         # simulate delay for new data
         time.sleep(5)
 
