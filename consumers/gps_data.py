@@ -57,7 +57,7 @@ def load_data():
             json_data.append(record)
     
         # simulate delay for new data
-        time.sleep(5)
+        time.sleep(3)
 
 
 if __name__ == "__main__":

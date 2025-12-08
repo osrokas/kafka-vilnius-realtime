@@ -34,7 +34,7 @@ def main():
 
         print("Data sent to Kafka successfully.")
 
-        time.sleep(5)  # fetch every 10 seconds
+        time.sleep(3)  # fetch every 3 seconds
 
 
 if __name__ == "__main__":
