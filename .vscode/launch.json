@@ -28,6 +28,12 @@
             "type": "debugpy",
             "request": "launch",
             "module": "streaming.bronze",
+        },
+        {
+            "name": "Silver Streaming Job",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "streaming.silver",
         }
     ]
 }
