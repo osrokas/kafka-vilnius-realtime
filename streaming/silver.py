@@ -22,11 +22,12 @@ packages = (
 # Configure Spark with Iceberg
 spark = SparkSession.builder \
     .appName("IcebergStreaming") \
+    .enableHiveSupport() \
     .config("spark.jars.packages", packages) \
     .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions") \
     .config("spark.sql.catalog.public_transport", "org.apache.iceberg.spark.SparkCatalog") \
-    .config("spark.sql.catalog.public_transport.type", "hadoop") \
-    .config("spark.sql.catalog.public_transport.warehouse", "/data/warehouse/public_transport") \
+    .config("spark.sql.catalog.public_transport.type", "hive") \
+    .config("spark.sql.catalog.public_transport.uri", "thrift://localhost:9083") \
     .getOrCreate()
 
 # Set Arrow optimization

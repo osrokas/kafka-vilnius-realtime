@@ -53,3 +53,44 @@ alembic revision --autogenerate -m "migration message"
 ```
 alembic upgrade head
 ```
+
+# Start Hadoop
+```
+start-dfs.sh
+start-yarn.sh
+```
+
+# Access Hadoop UI at by default:
+```
+http://localhost:9868/
+```
+
+# Access HDFS at by default:
+```
+http://localhost:9870/
+```
+
+# Start Trino
+```
+bin/launcher start
+```
+
+# Access Trino UI at by default:
+```
+http://localhost:8080/
+```
+
+# Remove Docker containers, networks, images, and volumes:
+```
+docker compose down --rmi all -v
+```
+
+# Connect to hive through docker
+```
+docker exec -it kafka-vilnius-realtime-hiveserver2-1 beeline -u jdbc:hive2://localhost:10000
+```
+
+# Stop all running Docker containers:
+```
+docker stop $(docker ps -q)
+```
