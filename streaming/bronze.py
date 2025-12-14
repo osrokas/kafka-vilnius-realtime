@@ -22,34 +22,31 @@ packages = (
 spark = SparkSession \
     .builder \
     .appName("HiveConnection") \
+    .config("spark.jars.packages", packages) \
     .config("spark.sql.warehouse.dir", "hdfs://localhost:9000/user/hive/warehouse") \
     .config("hive.metastore.uris", "thrift://localhost:9083") \
     .enableHiveSupport() \
     .getOrCreate()
 
-spark.sql("SHOW DATABASES").show()
+# Read from Kafka topic
+streaming_df = spark.readStream \
+    .format("kafka") \
+    .option("kafka.bootstrap.servers", "localhost:9092") \
+    .option("subscribe", TOPIC) \
+    .option("startingOffsets", "latest") \
+    .load()
 
-# spark.sql("SHOW TABLES").show()
+# Retrieve the raw message value as string
+raw_df = streaming_df.select(col("value").cast("string").alias("raw_message"))
 
-# # Read from Kafka topic
-# streaming_df = spark.readStream \
-#     .format("kafka") \
-#     .option("kafka.bootstrap.servers", "localhost:9092") \
-#     .option("subscribe", TOPIC) \
-#     .option("startingOffsets", "latest") \
-#     .load()
+# Save to Iceberg table
+query = raw_df.writeStream \
+    .format("iceberg") \
+    .outputMode("append") \
+    .option("truncate", "false") \
+    .outputMode("append") \
+    .option("checkpointLocation", "/tmp/checkpoint/gps_data") \
+    .toTable("public_transport.default.gps_data")
 
-# # Retrieve the raw message value as string
-# raw_df = streaming_df.select(col("value").cast("string").alias("raw_message"))
-
-# # Save to Iceberg table
-# query = raw_df.writeStream \
-#     .format("iceberg") \
-#     .outputMode("append") \
-#     .option("truncate", "false") \
-#     .outputMode("append") \
-#     .option("checkpointLocation", "/tmp/checkpoint/gps_data") \
-#     .toTable("public_transport.default.gps_data")
-
-# # Await termination of the streaming query
-# query.awaitTermination()
+# Await termination of the streaming query
+query.awaitTermination()
