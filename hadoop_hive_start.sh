@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Run hadoop services
-start-dfs.sh
-start-yarn.sh
+$HADOOP_HOME/sbin/start-dfs.sh
+$HADOOP_HOME/sbin/start-yarn.sh
 
 sleep 2
 
