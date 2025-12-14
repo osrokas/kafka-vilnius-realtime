@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Run hadoop services
 start-dfs.sh
 start-yarn.sh
