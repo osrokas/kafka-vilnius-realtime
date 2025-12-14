@@ -27,7 +27,8 @@ spark = SparkSession \
     .enableHiveSupport() \
     .getOrCreate()
 
-spark.sql("CREATE TABLE test_table2 (id INT, name STRING) STORED AS PARQUET")
+spark.sql("SHOW DATABASES").show()
+
 # spark.sql("SHOW TABLES").show()
 
 # # Read from Kafka topic
