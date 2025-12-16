@@ -1,12 +1,10 @@
 import os
 
-import pandas as pd
-from dotenv import load_dotenv
-
 from pyspark.sql.functions import *
 from pyspark.sql import SparkSession
 from pyspark.sql.types import *
 
+from dotenv import load_dotenv
 # Load environment variables
 if os.path.exists(".env"):
     load_dotenv(".env", override=True)
@@ -14,29 +12,71 @@ if os.path.exists(".env"):
 # Kafka topic name
 TOPIC = os.getenv("KAFKA_TOPIC", "gps_data")
 
+os.environ["PYSPARK_PYTHON"] = "/home/hadoop/projects/kafka-vilnius-realtime/.venv/bin/python"
+os.environ["PYSPARK_DRIVER_PYTHON"] = "/home/hadoop/projects/kafka-vilnius-realtime/.venv/bin/python"
+
 # Spark packages for Iceberg and Kafka
 packages = (
     "org.apache.iceberg:iceberg-spark-runtime-4.0_2.13:1.10.0,"
 )
 
-# Configure Spark with Iceberg
-spark = SparkSession.builder \
-    .appName("IcebergStreaming") \
-    .enableHiveSupport() \
-    .config("spark.jars.packages", packages) \
-    .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions") \
-    .config("spark.sql.catalog.public_transport", "org.apache.iceberg.spark.SparkCatalog") \
-    .config("spark.sql.catalog.public_transport.type", "hive") \
-    .config("spark.sql.catalog.public_transport.uri", "thrift://localhost:9083") \
-    .getOrCreate()
+packages = (
+    "org.apache.iceberg:iceberg-spark-runtime-4.0_2.13:1.10.0,"
+    "org.projectnessie.nessie-integrations:nessie-spark-extensions-3.5_2.13:0.104.5,"
+    "org.apache.spark:spark-sql-kafka-0-10_2.13:4.0.1,"
+    "org.apache.kafka:kafka-clients:3.6.0,"
+    "org.apache.hadoop:hadoop-client:3.4.1"
+)
 
-# Set Arrow optimization
-spark.conf.set("spark.sql.execution.arrow.enabled", "true")
+
+spark = SparkSession \
+    .builder \
+    .appName("GPSIcebergStream") \
+    .config("spark.jars.packages", packages) \
+    .config("spark.sql.catalog.iceberg", "org.apache.iceberg.spark.SparkCatalog") \
+    .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions," 
+            "org.projectnessie.spark.extensions.NessieSparkSessionExtensions") \
+    .config("spark.sql.catalog.iceberg", "org.apache.iceberg.spark.SparkCatalog") \
+    .config("spark.sql.catalog.iceberg.catalog-impl", "org.apache.iceberg.nessie.NessieCatalog") \
+    .config("spark.sql.catalog.iceberg.uri", "http://localhost:19120/api/v1") \
+    .config("spark.sql.catalog.iceberg.ref", "main") \
+    .config(
+        "spark.sql.catalog.iceberg.warehouse",
+        "hdfs://localhost:9000/iceberg/warehouse"
+    ) \
+    .config("spark.eventLog.enabled", "false") \
+    .getOrCreate()
+spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")
+spark.sql("CREATE DATABASE IF NOT EXISTS iceberg.silver")
+
+spark.sql("""
+    CREATE TABLE IF NOT EXISTS iceberg.silver.gps_data (
+        transport STRING,
+        route STRING,
+        trip_id BIGINT,
+        vehicle_number INT,
+        longitude FLOAT,
+        latitude FLOAT,
+        speed INT,
+        azimuth INT,
+        trip_start_minutes INT,
+        delay_seconds INT,
+        measurement_time BIGINT,
+        vehicle_type STRING,
+        direction_type STRING,
+        direction_name STRING,
+        gtfs_trip_id STRING,
+        interval_before INT,
+        interval_after INT,
+        timestamp TIMESTAMP
+    ) USING ICEBERG
+""")
 
 schema = StructType([
     StructField("rows", ArrayType(ArrayType(StringType())), True),
     StructField("header", ArrayType(StringType()), True)
 ])
+import pandas as pd
 
 @pandas_udf(schema, PandasUDFType.SCALAR)
 def parse_raw_udf(raw_series: pd.Series) -> pd.DataFrame:
@@ -103,7 +143,7 @@ def decode_lithuanian_udf(series: pd.Series) -> pd.Series:
 
 # Read from Iceberg table
 df = spark.readStream.format("iceberg") \
-    .load("public_transport.bronze.gps_data")
+    .load("iceberg.bronze.gps_data")
 
 # Parse raw messages
 parsed = df.select(parse_raw_udf(col("raw_message")).alias("parsed"))
@@ -191,11 +231,10 @@ df = df.withColumn("interval_after", col("interval_after").cast("int"))
 # Save to Iceberg table
 query = df.writeStream \
     .format("iceberg") \
-    .outputMode("append") \
     .option("truncate", "false") \
     .outputMode("append") \
-    .option("checkpointLocation", "/data/warehouse/checkpoints/public_transport/silver/gps_data") \
-    .toTable("public_transport.silver.gps_data")
+    .option("checkpointLocation", "/tmp/checkpoint/gps_data_iceberg_silver") \
+    .toTable("iceberg.silver.gps_data")
 
 # Await termination of the streaming query
 query.awaitTermination()
