@@ -22,3 +22,120 @@ services:
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
       CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+
+  namenode:
+      image: apache/hadoop:3
+      hostname: namenode
+      command: ["hdfs", "namenode"]
+      ports:
+        - 9870:9870
+        - 9000:9000
+      env_file:
+        - ./config
+      environment:
+          ENSURE_NAMENODE_DIR: "/tmp/hadoop-root/dfs/name"
+  datanode:
+      image: apache/hadoop:3
+      command: ["hdfs", "datanode"]
+      env_file:
+        - ./config      
+  resourcemanager:
+      image: apache/hadoop:3
+      hostname: resourcemanager
+      command: ["yarn", "resourcemanager"]
+      ports:
+        - 8088:8088
+      env_file:
+        - ./config
+      volumes:
+        - ./test.sh:/opt/test.sh
+  nodemanager:
+      image: apache/hadoop:3
+      command: ["yarn", "nodemanager"]
+      env_file:
+        - ./config
+
+  # Spark Master
+  spark-master:
+    image: spark:4.0.1-scala2.13-java17-ubuntu
+    container_name: spark-master
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    environment:
+      SPARK_MASTER_HOST: spark-master
+      SPARK_MASTER_PORT: 7077
+      SPARK_MASTER_WEBUI_PORT: 8080doc
+    depends_on:
+      - namenode
+    networks:
+      - data-platform
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Spark Worker 1
+  spark-worker1:
+    image: spark:4.0.1-scala2.13-java17-ubuntu
+    container_name: spark-worker1
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+    ports:
+      - "8081:8081"
+    environment:
+      SPARK_WORKER_CORES: 2
+      SPARK_WORKER_MEMORY: 1G
+      SPARK_WORKER_WEBUI_PORT: 8081
+    depends_on:
+      - spark-master
+    networks:
+      - data-platform
+
+  # Spark Worker 2
+  spark-worker2:
+    image: spark:4.0.1-scala2.13-java17-ubuntu
+    container_name: spark-worker2
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+    ports:
+      - "8082:8081"
+    environment:
+      SPARK_WORKER_CORES: 2
+      SPARK_WORKER_MEMORY: 1G
+      SPARK_WORKER_WEBUI_PORT: 8081
+    depends_on:
+      - spark-master
+    networks:
+      - data-platform
+  # add nessie for data catalog
+  nessie:
+    image: projectnessie/nessie:latest
+    container_name: nessie
+    ports:
+      - "19120:19120"
+    environment:
+      - "NESSIE_STORAGE=INMEMORY"
+      - "NESSIE_HTTP_PORT=19120"
+    depends_on:
+      - namenode
+
+  # Add trino for querying data setup for nessie catalog and iceberg
+  trino:
+    image: trinodb/trino:latest
+    container_name: trino
+    ports:
+      - "8082:8080"
+    volumes:
+      # Core Trino configuration
+      - ./trino/etc:/etc/trino
+    depends_on:
+      - nessie
+
+  
+networks:
+  data-platform:
+    driver: bridge
+
+volumes:
+  hadoop-data:
