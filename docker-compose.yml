@@ -24,90 +24,109 @@ services:
       CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
 
   namenode:
-      image: apache/hadoop:3
-      hostname: namenode
-      command: ["hdfs", "namenode"]
-      ports:
-        - 9870:9870
-        - 9000:9000
-      env_file:
-        - ./config
-      environment:
-          ENSURE_NAMENODE_DIR: "/tmp/hadoop-root/dfs/name"
+    image: apache/hadoop:3
+    hostname: namenode
+    user: root
+    command: >
+      bash -c "
+        mkdir -p /tmp/hadoopdata/dfs/name &&
+        chown -R hadoop:hadoop /tmp/hadoopdata &&
+        if [ ! -f /tmp/hadoopdata/dfs/name/current/VERSION ]; then
+          hdfs namenode -format -force;
+        fi &&
+        hdfs namenode
+      "
+    ports:
+      - 9870:9870
+      - 9000:9000
+    volumes:
+      - ./hadoop/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml
+      - ./hadoop/hdfs-site.xml:/opt/hadoop/etc/hadoop/hdfs-site.xml
+      - ./hadoop/mapred-site.xml:/opt/hadoop/etc/hadoop/mapred-site.xml
+      - ./hadoop/yarn-site.xml:/opt/hadoop/etc/hadoop/yarn-site.xml
+
   datanode:
       image: apache/hadoop:3
       command: ["hdfs", "datanode"]
-      env_file:
-        - ./config      
+      volumes:
+        - ./hadoop/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml
+        - ./hadoop/hdfs-site.xml:/opt/hadoop/etc/hadoop/hdfs-site.xml
+        - ./hadoop/mapred-site.xml:/opt/hadoop/etc/hadoop/mapred-site.xml
+        - ./hadoop/yarn-site.xml:/opt/hadoop/etc/hadoop/yarn-site.xml
+
   resourcemanager:
       image: apache/hadoop:3
       hostname: resourcemanager
       command: ["yarn", "resourcemanager"]
       ports:
         - 8088:8088
-      env_file:
-        - ./config
+        
       volumes:
-        - ./test.sh:/opt/test.sh
+        - ./hadoop/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml
+        - ./hadoop/hdfs-site.xml:/opt/hadoop/etc/hadoop/hdfs-site.xml
+        - ./hadoop/mapred-site.xml:/opt/hadoop/etc/hadoop/mapred-site.xml
+        - ./hadoop/yarn-site.xml:/opt/hadoop/etc/hadoop/yarn-site.xml
+
   nodemanager:
       image: apache/hadoop:3
       command: ["yarn", "nodemanager"]
-      env_file:
-        - ./config
+      volumes:
+        - ./hadoop/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml
+        - ./hadoop/hdfs-site.xml:/opt/hadoop/etc/hadoop/hdfs-site.xml
+        - ./hadoop/mapred-site.xml:/opt/hadoop/etc/hadoop/mapred-site.xml
+        - ./hadoop/yarn-site.xml:/opt/hadoop/etc/hadoop/yarn-site.xml
 
-  # Spark Master
-  spark-master:
-    image: spark:4.0.1-scala2.13-java17-ubuntu
-    container_name: spark-master
-    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
-    ports:
-      - "8080:8080"
-      - "7077:7077"
-    environment:
-      SPARK_MASTER_HOST: spark-master
-      SPARK_MASTER_PORT: 7077
-      SPARK_MASTER_WEBUI_PORT: 8080doc
-    depends_on:
-      - namenode
-    networks:
-      - data-platform
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+  # # Spark Master
+  # spark-master:
+  #   image: spark:4.0.1-scala2.13-java17-ubuntu
+  #   container_name: spark-master
+  #   command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
+  #   ports:
+  #     - "7077:7077"
+  #   environment:
+  #     SPARK_MASTER_HOST: spark-master
+  #     SPARK_MASTER_PORT: 7077
+  #     SPARK_MASTER_WEBUI_PORT: 8080
+  #     SPARK_CONF_spark_hadoop_fs_defaultFS: hdfs://namenode:9000
 
-  # Spark Worker 1
-  spark-worker1:
-    image: spark:4.0.1-scala2.13-java17-ubuntu
-    container_name: spark-worker1
-    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
-    ports:
-      - "8081:8081"
-    environment:
-      SPARK_WORKER_CORES: 2
-      SPARK_WORKER_MEMORY: 1G
-      SPARK_WORKER_WEBUI_PORT: 8081
-    depends_on:
-      - spark-master
-    networks:
-      - data-platform
+  #   depends_on:
+  #     - namenode
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:8080"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #   volumes:
+  #     - ./hadoop:/etc/hadoop
 
-  # Spark Worker 2
-  spark-worker2:
-    image: spark:4.0.1-scala2.13-java17-ubuntu
-    container_name: spark-worker2
-    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
-    ports:
-      - "8082:8081"
-    environment:
-      SPARK_WORKER_CORES: 2
-      SPARK_WORKER_MEMORY: 1G
-      SPARK_WORKER_WEBUI_PORT: 8081
-    depends_on:
-      - spark-master
-    networks:
-      - data-platform
+  # # Spark Worker 1
+  # spark-worker1:
+  #   image: spark:4.0.1-scala2.13-java17-ubuntu
+  #   container_name: spark-worker1
+  #   command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+  #   ports:
+  #     - "8081:8081"
+  #   environment:
+  #     SPARK_WORKER_CORES: 2
+  #     SPARK_WORKER_MEMORY: 1G
+  #     SPARK_WORKER_WEBUI_PORT: 8081
+  #   depends_on:
+  #     - spark-master
+
+  # # Spark Worker 2
+  # spark-worker2:
+  #   image: spark:4.0.1-scala2.13-java17-ubuntu
+  #   container_name: spark-worker2
+  #   command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+  #   ports:
+  #     - "8082:8081"
+  #   environment:
+  #     SPARK_WORKER_CORES: 2
+  #     SPARK_WORKER_MEMORY: 1G
+  #     SPARK_WORKER_WEBUI_PORT: 8081
+  #   depends_on:
+  #     - spark-master
+
   # add nessie for data catalog
   nessie:
     image: projectnessie/nessie:latest
@@ -125,17 +144,13 @@ services:
     image: trinodb/trino:latest
     container_name: trino
     ports:
-      - "8082:8080"
+      - "8080:8080"
+    # Create etc directory for trino configuration files
     volumes:
       # Core Trino configuration
-      - ./trino/etc:/etc/trino
+      - ./trino/config.properties:/etc/trino/config.properties
+      - ./trino/jvm.config:/etc/trino/jvm.config
+      - ./trino/node.properties:/etc/trino/node.properties
+      - ./trino/catalog/iceberg.properties:/etc/trino/catalog/iceberg.properties
     depends_on:
       - nessie
-
-  
-networks:
-  data-platform:
-    driver: bridge
-
-volumes:
-  hadoop-data:

@@ -29,8 +29,8 @@ spark = SparkSession \
     .config("spark.sql.catalog.iceberg.uri", "http://localhost:19120/api/v1") \
     .config("spark.sql.catalog.iceberg.ref", "main") \
     .config(
-        "spark.sql.catalog.iceberg.warehouse",
-        "hdfs://localhost:9000/iceberg/warehouse"
+    "spark.sql.catalog.iceberg.warehouse",
+    "hdfs://localhost:9000/iceberg/warehouse"  # localhost instead of namenode
     ) \
     .config("spark.eventLog.enabled", "false") \
     .getOrCreate()

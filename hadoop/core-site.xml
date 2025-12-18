@@ -19,11 +19,11 @@
 <configuration>
     <property>
         <name>fs.defaultFS</name>
-        <value>hdfs://localhost:9000</value>
+        <value>hdfs://namenode:9000</value>
     </property>
     <property>
         <name>hadoop.tmp.dir</name>
-        <value>/home/hadoop/hadoopdata/tmp</value>
+        <value>/tmp/hadoopdata</value>
     </property>
     <property>
         <name>hadoop.proxyuser.hadoop.groups</name>
@@ -33,4 +33,6 @@
         <name>hadoop.proxyuser.hadoop.hosts</name>
         <value>*</value>
     </property>
+        <name>dfs.permissions.enabled</name>
+        <value>false</value>
 </configuration>

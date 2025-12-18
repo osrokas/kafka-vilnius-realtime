@@ -46,6 +46,7 @@ spark = SparkSession \
     ) \
     .config("spark.eventLog.enabled", "false") \
     .getOrCreate()
+
 spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")
 spark.sql("CREATE DATABASE IF NOT EXISTS iceberg.silver")
 

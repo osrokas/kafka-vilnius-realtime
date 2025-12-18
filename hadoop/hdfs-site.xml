@@ -17,20 +17,28 @@
 <!-- Put site-specific property overrides in this file. -->
 
 <configuration>
-    <property>
-        <name>dfs.replication</name>
-        <value>1</value>
-    </property>
-    <property>
-        <name>hadoop.tmp.dir</name>
-        <value>/home/hadoop/hadoopdata/tmp</value>
-    </property>
-    <property>
-        <name>hadoop.proxyuser.hadoop.groups</name>
-        <value>*</value>
-    </property>
-    <property>
-        <name>hadoop.proxyuser.hadoop.hosts</name>
-        <value>*</value>
-    </property>
+  <property>
+    <n>dfs.namenode.name.dir</n>
+    <value>/hadoop/dfs/name</value>
+  </property>
+  <property>
+    <n>dfs.datanode.data.dir</n>
+    <value>/hadoop/dfs/data</value>
+  </property>
+  <property>
+    <n>dfs.replication</n>
+    <value>1</value>
+  </property>
+  <property>
+    <n>dfs.namenode.rpc-bind-host</n>
+    <value>0.0.0.0</value>
+  </property>
+  <property>
+    <n>dfs.namenode.servicerpc-bind-host</n>
+    <value>0.0.0.0</value>
+  </property>
+  <property>
+      <name>dfs.permissions.enabled</name>
+      <value>false</value>
+  </property>
 </configuration>
